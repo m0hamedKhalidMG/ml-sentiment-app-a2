@@ -1,0 +1,46 @@
+{
+  "V1": [
+    {
+      "text": "I absolutely love this product, it is amazing!",
+      "sentiment": "Positive"
+    },
+    {
+      "text": "Terrible service, worst experience ever.",
+      "sentiment": "Negative"
+    },
+    {
+      "text": "The package arrived on time.",
+      "sentiment": "Positive"
+    },
+    {
+      "text": "Great quality and fantastic value for money!",
+      "sentiment": "Positive"
+    },
+    {
+      "text": "Completely broken, waste of money.",
+      "sentiment": "Negative"
+    }
+  ],
+  "V2": [
+    {
+      "text": "I absolutely love this product, it is amazing!",
+      "sentiment": "Positive"
+    },
+    {
+      "text": "Terrible service, worst experience ever.",
+      "sentiment": "Negative"
+    },
+    {
+      "text": "The package arrived on time.",
+      "sentiment": "Positive"
+    },
+    {
+      "text": "Great quality and fantastic value for money!",
+      "sentiment": "Positive"
+    },
+    {
+      "text": "Completely broken, waste of money.",
+      "sentiment": "Negative"
+    }
+  ]
+}
