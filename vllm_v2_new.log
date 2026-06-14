@@ -1,0 +1,75 @@
+Skipping import of cpp extensions due to incompatible torch version. Please upgrade to torch >= 2.11.0 (found 2.10.0+cu128).
+(APIServer pid=1999043) INFO 06-13 16:03:58 [utils.py:297] 
+(APIServer pid=1999043) INFO 06-13 16:03:58 [utils.py:297]        █     █     █▄   ▄█
+(APIServer pid=1999043) INFO 06-13 16:03:58 [utils.py:297]  ▄▄ ▄█ █     █     █ ▀▄▀ █  version 0.18.0
+(APIServer pid=1999043) INFO 06-13 16:03:58 [utils.py:297]   █▄█▀ █     █     █     █  model   ./qwen2.5-1.5b-gptq-4bit
+(APIServer pid=1999043) INFO 06-13 16:03:58 [utils.py:297]    ▀▀  ▀▀▀▀▀ ▀▀▀▀▀ ▀     ▀
+(APIServer pid=1999043) INFO 06-13 16:03:58 [utils.py:297] 
+(APIServer pid=1999043) INFO 06-13 16:03:58 [utils.py:233] non-default args: {'port': 8002, 'model': './qwen2.5-1.5b-gptq-4bit', 'max_model_len': 512, 'enforce_eager': True, 'gpu_memory_utilization': 0.15}
+(APIServer pid=1999043) INFO 06-13 16:03:58 [model.py:533] Resolved architecture: Qwen2ForCausalLM
+(APIServer pid=1999043) INFO 06-13 16:03:58 [model.py:1582] Using max model len 512
+(APIServer pid=1999043) INFO 06-13 16:04:00 [gptq_marlin.py:229] The model is convertible to gptq_marlin during runtime. Using gptq_marlin kernel.
+(APIServer pid=1999043) INFO 06-13 16:04:00 [scheduler.py:231] Chunked prefill is enabled with max_num_batched_tokens=2048.
+(APIServer pid=1999043) INFO 06-13 16:04:00 [vllm.py:754] Asynchronous scheduling is enabled.
+(APIServer pid=1999043) WARNING 06-13 16:04:00 [vllm.py:788] Enforce eager set, disabling torch.compile and CUDAGraphs. This is equivalent to setting -cc.mode=none -cc.cudagraph_mode=none
+(APIServer pid=1999043) WARNING 06-13 16:04:00 [vllm.py:799] Inductor compilation was disabled by user settings, optimizations settings that are only active during inductor compilation will be ignored.
+(APIServer pid=1999043) INFO 06-13 16:04:00 [vllm.py:964] Cudagraph is disabled under eager mode
+(APIServer pid=1999043) INFO 06-13 16:04:00 [compilation.py:289] Enabled custom fusions: norm_quant, act_quant
+Skipping import of cpp extensions due to incompatible torch version. Please upgrade to torch >= 2.11.0 (found 2.10.0+cu128).
+(EngineCore pid=1999221) INFO 06-13 16:04:11 [core.py:103] Initializing a V1 LLM engine (v0.18.0) with config: model='./qwen2.5-1.5b-gptq-4bit', speculative_config=None, tokenizer='./qwen2.5-1.5b-gptq-4bit', skip_tokenizer_init=False, tokenizer_mode=auto, revision=None, tokenizer_revision=None, trust_remote_code=False, dtype=torch.float16, max_seq_len=512, download_dir=None, load_format=auto, tensor_parallel_size=1, pipeline_parallel_size=1, data_parallel_size=1, decode_context_parallel_size=1, dcp_comm_backend=ag_rs, disable_custom_all_reduce=False, quantization=gptq_marlin, enforce_eager=True, enable_return_routed_experts=False, kv_cache_dtype=auto, device_config=cuda, structured_outputs_config=StructuredOutputsConfig(backend='auto', disable_any_whitespace=False, disable_additional_properties=False, reasoning_parser='', reasoning_parser_plugin='', enable_in_reasoning=False), observability_config=ObservabilityConfig(show_hidden_metrics_for_version=None, otlp_traces_endpoint=None, collect_detailed_traces=None, kv_cache_metrics=False, kv_cache_metrics_sample=0.01, cudagraph_metrics=False, enable_layerwise_nvtx_tracing=False, enable_mfu_metrics=False, enable_mm_processor_stats=False, enable_logging_iteration_details=False), seed=0, served_model_name=./qwen2.5-1.5b-gptq-4bit, enable_prefix_caching=True, enable_chunked_prefill=True, pooler_config=None, compilation_config={'mode': <CompilationMode.NONE: 0>, 'debug_dump_path': None, 'cache_dir': '', 'compile_cache_save_format': 'binary', 'backend': 'inductor', 'custom_ops': ['all'], 'splitting_ops': [], 'compile_mm_encoder': False, 'compile_sizes': [], 'compile_ranges_endpoints': [2048], 'inductor_compile_config': {'enable_auto_functionalized_v2': False, 'combo_kernels': True, 'benchmark_combo_kernel': True}, 'inductor_passes': {}, 'cudagraph_mode': <CUDAGraphMode.NONE: 0>, 'cudagraph_num_of_warmups': 0, 'cudagraph_capture_sizes': [], 'cudagraph_copy_inputs': False, 'cudagraph_specialize_lora': True, 'use_inductor_graph_partition': False, 'pass_config': {'fuse_norm_quant': True, 'fuse_act_quant': True, 'fuse_attn_quant': False, 'enable_sp': False, 'fuse_gemm_comms': False, 'fuse_allreduce_rms': False}, 'max_cudagraph_capture_size': 0, 'dynamic_shapes_config': {'type': <DynamicShapesType.BACKED: 'backed'>, 'evaluate_guards': False, 'assume_32_bit_indexing': False}, 'local_cache_dir': None, 'fast_moe_cold_start': True, 'static_all_moe_layers': []}
+(EngineCore pid=1999221) INFO 06-13 16:04:12 [parallel_state.py:1395] world_size=1 rank=0 local_rank=0 distributed_init_method=tcp://130.15.5.207:39939 backend=nccl
+(EngineCore pid=1999221) INFO 06-13 16:04:12 [parallel_state.py:1717] rank 0 in world size 1 is assigned as DP rank 0, PP rank 0, PCP rank 0, TP rank 0, EP rank N/A, EPLB rank N/A
+(EngineCore pid=1999221) INFO 06-13 16:04:12 [gpu_model_runner.py:4481] Starting to load model ./qwen2.5-1.5b-gptq-4bit...
+(EngineCore pid=1999221) INFO 06-13 16:04:12 [gptq_marlin.py:376] Using MarlinLinearKernel for GPTQMarlinLinearMethod
+(EngineCore pid=1999221) INFO 06-13 16:04:13 [cuda.py:317] Using FLASH_ATTN attention backend out of potential backends: ['FLASH_ATTN', 'FLASHINFER', 'TRITON_ATTN', 'FLEX_ATTENTION'].
+(EngineCore pid=1999221) INFO 06-13 16:04:13 [flash_attn.py:598] Using FlashAttention version 2
+(EngineCore pid=1999221) Loading safetensors checkpoint shards:   0% Completed | 0/1 [00:00<?, ?it/s]
+(EngineCore pid=1999221) Loading safetensors checkpoint shards: 100% Completed | 1/1 [00:01<00:00,  1.22s/it]
+(EngineCore pid=1999221) Loading safetensors checkpoint shards: 100% Completed | 1/1 [00:01<00:00,  1.22s/it]
+(EngineCore pid=1999221) 
+(EngineCore pid=1999221) INFO 06-13 16:04:14 [default_loader.py:384] Loading weights took 1.24 seconds
+(EngineCore pid=1999221) INFO 06-13 16:04:15 [gpu_model_runner.py:4566] Model loading took 1.12 GiB memory and 1.959541 seconds
+(EngineCore pid=1999221) INFO 06-13 16:04:16 [marlin_utils.py:434] Marlin kernel can achieve better performance for small size_n with experimental use_atomic_add feature. You can consider set environment variable VLLM_MARLIN_USE_ATOMIC_ADD to 1 if possible.
+(EngineCore pid=1999221) INFO 06-13 16:04:18 [gpu_worker.py:456] Available KV cache memory: 0.5 GiB
+(EngineCore pid=1999221) INFO 06-13 16:04:18 [kv_cache_utils.py:1316] GPU KV cache size: 18,832 tokens
+(EngineCore pid=1999221) INFO 06-13 16:04:18 [kv_cache_utils.py:1321] Maximum concurrency for 512 tokens per request: 36.78x
+(EngineCore pid=1999221) INFO 06-13 16:04:18 [core.py:281] init engine (profile, create kv cache, warmup model) took 3.11 seconds
+(EngineCore pid=1999221) INFO 06-13 16:04:20 [vllm.py:754] Asynchronous scheduling is enabled.
+(EngineCore pid=1999221) WARNING 06-13 16:04:20 [vllm.py:788] Enforce eager set, disabling torch.compile and CUDAGraphs. This is equivalent to setting -cc.mode=none -cc.cudagraph_mode=none
+(EngineCore pid=1999221) WARNING 06-13 16:04:20 [vllm.py:799] Inductor compilation was disabled by user settings, optimizations settings that are only active during inductor compilation will be ignored.
+(EngineCore pid=1999221) INFO 06-13 16:04:20 [vllm.py:964] Cudagraph is disabled under eager mode
+(EngineCore pid=1999221) INFO 06-13 16:04:20 [compilation.py:289] Enabled custom fusions: norm_quant, act_quant
+(APIServer pid=1999043) INFO 06-13 16:04:20 [api_server.py:576] Supported tasks: ['generate']
+(APIServer pid=1999043) WARNING 06-13 16:04:20 [model.py:1376] Default vLLM sampling parameters have been overridden by the model's `generation_config.json`: `{'max_tokens': 2048}`. If this is not intended, please relaunch vLLM instance with `--generation-config vllm`.
+(APIServer pid=1999043) INFO 06-13 16:04:21 [hf.py:320] Detected the chat template content format to be 'string'. You can set `--chat-template-content-format` to override this.
+(APIServer pid=1999043) INFO 06-13 16:04:21 [api_server.py:580] Starting vLLM server on http://0.0.0.0:8002
+(APIServer pid=1999043) INFO 06-13 16:04:21 [launcher.py:37] Available routes are:
+(APIServer pid=1999043) INFO 06-13 16:04:21 [launcher.py:46] Route: /openapi.json, Methods: HEAD, GET
+(APIServer pid=1999043) INFO 06-13 16:04:21 [launcher.py:46] Route: /docs, Methods: HEAD, GET
+(APIServer pid=1999043) INFO 06-13 16:04:21 [launcher.py:46] Route: /docs/oauth2-redirect, Methods: HEAD, GET
+(APIServer pid=1999043) INFO 06-13 16:04:21 [launcher.py:46] Route: /redoc, Methods: HEAD, GET
+(APIServer pid=1999043) INFO 06-13 16:04:21 [launcher.py:46] Route: /tokenize, Methods: POST
+(APIServer pid=1999043) INFO 06-13 16:04:21 [launcher.py:46] Route: /detokenize, Methods: POST
+(APIServer pid=1999043) INFO 06-13 16:04:21 [launcher.py:46] Route: /load, Methods: GET
+(APIServer pid=1999043) INFO 06-13 16:04:21 [launcher.py:46] Route: /version, Methods: GET
+(APIServer pid=1999043) INFO 06-13 16:04:21 [launcher.py:46] Route: /health, Methods: GET
+(APIServer pid=1999043) INFO 06-13 16:04:21 [launcher.py:46] Route: /metrics, Methods: GET
+(APIServer pid=1999043) INFO 06-13 16:04:21 [launcher.py:46] Route: /v1/models, Methods: GET
+(APIServer pid=1999043) INFO 06-13 16:04:21 [launcher.py:46] Route: /ping, Methods: GET
+(APIServer pid=1999043) INFO 06-13 16:04:21 [launcher.py:46] Route: /ping, Methods: POST
+(APIServer pid=1999043) INFO 06-13 16:04:21 [launcher.py:46] Route: /invocations, Methods: POST
+(APIServer pid=1999043) INFO 06-13 16:04:21 [launcher.py:46] Route: /v1/chat/completions, Methods: POST
+(APIServer pid=1999043) INFO 06-13 16:04:21 [launcher.py:46] Route: /v1/responses, Methods: POST
+(APIServer pid=1999043) INFO 06-13 16:04:21 [launcher.py:46] Route: /v1/responses/{response_id}, Methods: GET
+(APIServer pid=1999043) INFO 06-13 16:04:21 [launcher.py:46] Route: /v1/responses/{response_id}/cancel, Methods: POST
+(APIServer pid=1999043) INFO 06-13 16:04:21 [launcher.py:46] Route: /v1/completions, Methods: POST
+(APIServer pid=1999043) INFO 06-13 16:04:21 [launcher.py:46] Route: /v1/messages, Methods: POST
+(APIServer pid=1999043) INFO 06-13 16:04:21 [launcher.py:46] Route: /v1/messages/count_tokens, Methods: POST
+(APIServer pid=1999043) INFO 06-13 16:04:21 [launcher.py:46] Route: /inference/v1/generate, Methods: POST
+(APIServer pid=1999043) INFO 06-13 16:04:21 [launcher.py:46] Route: /scale_elastic_ep, Methods: POST
+(APIServer pid=1999043) INFO 06-13 16:04:21 [launcher.py:46] Route: /is_scaling_elastic_ep, Methods: POST
+(APIServer pid=1999043) INFO 06-13 16:04:21 [launcher.py:46] Route: /v1/chat/completions/render, Methods: POST
+(APIServer pid=1999043) INFO 06-13 16:04:21 [launcher.py:46] Route: /v1/completions/render, Methods: POST
+(APIServer pid=1999043) INFO:     Started server process [1999043]
+(APIServer pid=1999043) INFO:     Waiting for application startup.
+(APIServer pid=1999043) INFO:     Application startup complete.

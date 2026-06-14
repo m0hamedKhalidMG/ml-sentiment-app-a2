@@ -1,0 +1,727 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{xcolor}
+\usepackage{booktabs}
+\usepackage{float}
+\usepackage{amsmath}
+\usepackage{geometry}
+\usepackage{enumitem}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{verbatim}
+
+\geometry{margin=2.5cm, top=3cm}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small CISC-814 Assignment 2}
+\fancyhead[R]{\small Team Queens}
+\fancyfoot[C]{\thepage}
+
+\titleformat{\section}{\large\bfseries}{\thesection}{1em}{}
+\titleformat{\subsection}{\normalsize\bfseries}{\thesubsection}{1em}{}
+
+\definecolor{codegray}{gray}{0.95}
+\newcommand{\codeblock}[1]{%
+\begin{quote}
+\begin{verbatim}
+#1
+\end{verbatim}
+\end{quote}
+}
+
+\newcommand{\screenshot}[4]{%
+\begin{figure}[H]
+\centering
+\vspace{0.5cm}
+\fbox{\parbox{0.8\textwidth}{\centering\vspace{0.5cm}\textbf{Screenshot: #1}\vspace{0.3cm}\par#2\vspace{0.5cm}}}
+\caption[#3]{#4}
+\label{fig:#1}
+\end{figure}
+}
+
+\begin{document}
+
+\begin{titlepage}
+\centering
+\vspace*{1cm}
+{\Huge\bfseries CISC-814 (Summer 2026)\\[0.5cm]
+Assignment 2: MLOps Pipeline\\[1.5cm]}
+
+{\Large\bfseries Group 2 Team Queens\\[0.5cm]}
+
+{\large
+\begin{tabular}{ll}
+\textbf{Marwan Aly} (marwanaly) & 25tfgf --- 25tfgf@queensu.ca \\
+\textbf{Manar Elabsi} (manarelabsi) & 25xjnf1 --- 25xjnf1@queensu.ca \\
+\textbf{Mohamed Othman} (MohamedOthman) & 25vft4 --- 25vft4@queensu.ca \\
+\textbf{Aya Abdelmonem} (ayaabdelmonem) & 25spy --- 25spy@queensu.ca \\
+\end{tabular}
+\vspace{1cm}}
+
+{\large\textbf{Team VM:} queens (IP: 130.15.5.207)\\[0.5cm]}
+
+{\large\textbf{Demo Video:} \url{https://drive.google.com/drive/folders/1unnBNEiOz5OSak0DwEVh2eQr5cnvm79X?usp=sharing}\\[1.5cm]}
+
+{\large\today}
+\end{titlepage}
+
+\tableofcontents
+\newpage
+
+% ============================================
+\section{Part A: MLflow + Experimentation}
+\label{sec:part-a}
+% ============================================
+
+\subsection{Task 0: Setup}
+
+We installed all required dependencies in a Python virtual environment and verified the key packages:
+
+\begin{verbatim}
+python3 -c "import torch; print(f'PyTorch {torch.__version__}, \\
+  CUDA available: {torch.cuda.is_available()}')"
+python3 -c "import transformers; print(f'Transformers {transformers.__version__}')"
+python3 -c "import mlflow; print(f'MLflow {mlflow.__version__}')"
+python3 -c "import vllm; print(f'vLLM {vllm.__version__}')"
+\end{verbatim}
+
+Generated sample datasets:
+\begin{verbatim}
+python -c "from src.data_loader import create_sample_dataset; \\
+  create_sample_dataset('data/eval_sentiment.csv', n_samples=100); \\
+  create_sample_dataset('data/train_sentiment.csv', n_samples=200)"
+\end{verbatim}
+
+
+
+\subsection{Task 1: MLflow Setup (10 points)}
+
+We connected to the MLflow server at \texttt{http://localhost:5050} and created an experiment with artifact proxying enabled. The primary experiment name is \texttt{sentiment-qwen2.5-experiments} (Experiment ID: 2), which contains the few-shot runs. The quantization evaluation run was logged under a separate experiment named \texttt{team-queens-a2-sentiment} (Experiment ID: 1). The Model Registry name is \texttt{team-queens-a2-sentiment}.
+
+\textbf{Note:} There are two related but distinct names:
+\begin{itemize}
+\item \textbf{Experiment (few-shot runs):} \texttt{sentiment-qwen2.5-experiments} - Contains the 1/3/5-shot few-shot runs.
+\item \textbf{Experiment (quantization run):} \texttt{team-queens-a2-sentiment} - Contains the quantization evaluation run.
+\item \textbf{Registered Model:} \texttt{team-queens-a2-sentiment} - The model registry entry with champion/challenger aliases.
+\end{itemize}
+
+\textbf{Implementation Note:} During the initial setup, two experiments with similar names were created (Experiment ID 1: \texttt{team-queens-a2-sentiment} and Experiment ID 2: \texttt{sentiment-qwen2.5-experiments}) due to the experiment creation logic in \texttt{setup\_mlflow()}. The code first attempts to create an experiment with \texttt{client.create\_experiment()}, and if it already exists, retrieves it. The few-shot runs were logged under Experiment ID 2 (\texttt{sentiment-qwen2.5-experiments}), while the quantization run and the registered model aliases are under Experiment ID 1 (\texttt{team-queens-a2-sentiment}). Both experiments use artifact proxying (\texttt{mlflow-artifacts:/}).
+
+\begin{verbatim}
+from mlflow import MlflowClient
+client = MlflowClient(tracking_uri="http://localhost:5050")
+exp_id = client.create_experiment(
+    "sentiment-qwen2.5-experiments",
+    artifact_location="mlflow-artifacts:/"
+)
+\end{verbatim}
+
+
+
+\subsection{Task 2: Few-Shot Experiments (12 points)}
+
+We ran few-shot prompting experiments with 1, 3, and 5 examples, logging all parameters, metrics, and artifacts to MLflow.
+
+\textbf{Parameters logged per run:}
+\begin{itemize}
+\item \texttt{experiment\_type} = ``few\_shot''
+\item \texttt{n\_shots} = 1, 3, or 5
+\item \texttt{vllm\_model\_path} = ``Qwen/Qwen2.5-1.5B''
+\end{itemize}
+
+\textbf{Metrics logged:} accuracy, f1\_macro, precision\_macro, recall\_macro, avg\_latency\_s.
+
+\textbf{Artifacts:} classification\_report.txt, confusion\_matrix.png.
+
+\begin{table}[H]
+\centering
+\caption{Few-Shot Results}
+\begin{tabular}{@{}lccccc@{}}
+\toprule
+\textbf{Shots} & \textbf{Accuracy} & \textbf{F1} & \textbf{Precision} & \textbf{Recall} & \textbf{Latency (s)} \\
+\midrule
+1-shot & 0.90 & 0.896 & 0.933 & 0.889 & 0.354 \\
+3-shot & 1.00 & 1.000 & 1.000 & 1.000 & 0.341 \\
+5-shot & 1.00 & 1.000 & 1.000 & 1.000 & 0.333 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.9\textwidth]{images/few_shot_experiments.jpeg}
+\caption{MLflow UI showing few-shot experiments overview}
+\label{fig:few_shot_experiments}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.9\textwidth]{images/comparing_3_runs_from_1_experiment.jpeg}
+\caption{MLflow UI comparing 3 runs from 1 experiment}
+\label{fig:comparing_3_runs}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.45\textwidth]{images/few_shot_1.jpeg}
+\hfill
+\includegraphics[width=0.45\textwidth]{images/few_shot_3.jpeg}
+\caption{MLflow UI showing few-shot 1 and few-shot 3 run details}
+\label{fig:few_shot_1_3}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.9\textwidth]{images/few_shot_5.jpeg}
+\caption{MLflow UI showing few-shot 5 run details}
+\label{fig:few_shot_5}
+\end{figure}
+
+
+
+\subsection{Task 3: Quantization (10 points)}
+
+We quantized Qwen2.5-1.5B to 4-bit GPTQ, reducing model size from $\sim$3GB to $\sim$1GB. The quantization process took approximately 45 minutes to complete, using GPTQ (Generative Pre-trained Transformer Quantization) with 48 calibration samples from the wikitext dataset.
+
+\textbf{What the functions do:}
+\begin{itemize}
+\item \texttt{quantize\_gptq}: Loads the original 16-bit model, analyzes weights using calibration data (wikitext), and compresses to 4-bit precision while preserving architecture. The function uses gradient-based quantization to minimize quantization error, which is more sophisticated than simple rounding. It processes the model layer-by-layer, computing optimal quantization parameters for each weight matrix.
+\item \texttt{evaluate\_quantized\_model}: Loads the compressed model, runs the evaluation dataset, compares predictions to true labels, and logs accuracy, F1, latency, and model size to MLflow. The function also measures inference time per sample to calculate average latency in milliseconds.
+\end{itemize}
+
+\textbf{Quantization Details:}
+\begin{itemize}
+\item \textbf{Method:} GPTQ (Generative Pre-trained Transformer Quantization)
+\item \textbf{Bits:} 4-bit precision
+\item \textbf{Calibration samples:} 48 samples from wikitext dataset
+\item \textbf{Output directory:} \texttt{./qwen2.5-1.5b-gptq-4bit}
+\item \textbf{Compression ratio:} 2.8x (from 3.0 GB to 1.08 GB)
+\end{itemize}
+
+\begin{verbatim}
+python3 quantization/quantize_model.py \
+  --model Qwen/Qwen2.5-1.5B \
+  --output ./qwen2.5-1.5b-gptq-4bit \
+  --method gptq --bits 4 --num-samples 48 \
+  --evaluate --eval-dataset data/eval_sentiment.csv \
+  --mlflow-uri http://localhost:5050 \
+  --experiment-name sentiment-qwen2.5-experiments
+\end{verbatim}
+
+\begin{table}[H]
+\centering
+\caption{Quantization Results}
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Metric} & \textbf{Value} \\
+\midrule
+Original size & $\sim$3.0 GB (fp16) \\
+Quantized size & 1.08 GB (GPTQ 4-bit) \\
+Compression & 2.8x \\
+Accuracy & 0.90 \\
+F1 Score & 0.896 \\
+Latency & 88 ms \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.9\textwidth]{images/quantization_eval_1.png}
+\caption{MLflow UI showing quantization evaluation run with metrics from sentiment-qwen2.5-experiments (Experiment ID: 2)}
+\label{fig:quantization_eval}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.9\textwidth]{images/quantization_eval_2.png}
+\caption{MLflow UI showing evaluation runs comparison including quantization and few-shot experiments from sentiment-qwen2.5-experiments (Experiment ID: 2)}
+\label{fig:quantization_eval_2}
+\end{figure}
+
+
+
+\subsection{Task 4: Model Registry (8 points)}
+
+We registered both models in the Model Registry under the name \texttt{team-queens-a2-sentiment}. The champion alias was assigned to the best few-shot run from \texttt{sentiment-qwen2.5-experiments}, and the challenger alias was assigned to the quantization evaluation run from \texttt{team-queens-a2-sentiment}. Note that because the few-shot and quantization runs were logged under different experiment names, the registration commands were run against the respective experiment for each alias.
+
+\begin{table}[H]
+\centering
+\caption{Model Registry (\texttt{team-queens-a2-sentiment})}
+\begin{tabular}{@{}llll@{}}
+\toprule
+\textbf{Version} & \textbf{Alias} & \textbf{Type} & \textbf{Path} \\
+\midrule
+1 & champion & few\_shot & Qwen/Qwen2.5-1.5B \\
+2 & challenger & quantization\_eval & /home/localuser/ml-sentiment-app-a2/qwen2.5-1.5b-gptq-4bit \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Note:} The registered model name (\texttt{team-queens-a2-sentiment}) is different from the experiment name (\texttt{sentiment-qwen2.5-experiments}). The registration script searches for the best run in the experiment, then registers it under the model registry with the appropriate alias.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.9\textwidth]{images/model_registry_version_1.jpeg}
+\caption{MLflow Model Registry showing champion version (v1)}
+\label{fig:model_registry_v1}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.9\textwidth]{images/model_registry_version_2.jpeg}
+\caption{MLflow Model Registry showing challenger version (v2)}
+\label{fig:model_registry_v2}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.9\textwidth]{images/model_registry.jpeg}
+\caption{MLflow Model Registry overview showing all registered versions}
+\label{fig:model_registry_overview}
+\end{figure}
+
+\newpage
+
+% ============================================
+\section{Part B: Production MLOps}
+\label{sec:part-b}
+% ============================================
+
+\subsection{Task 1: Model Serving with vLLM (12 points)}
+
+We queried the MLflow registry to get the \texttt{vllm\_model\_path} tags for both models using an inline Python script:
+
+\begin{verbatim}
+python3 -c "from mlflow.tracking import MlflowClient; \
+  client = MlflowClient('http://localhost:5050'); \
+  mv1 = client.get_model_version('team-queens-a2-sentiment', 1); \
+  mv2 = client.get_model_version('team-queens-a2-sentiment', 2); \
+  print('V1:', mv1.tags.get('vllm_model_path')); \
+  print('V2:', mv2.tags.get('vllm_model_path'))"
+\end{verbatim}
+
+Then started vLLM servers for both models:
+
+\begin{verbatim}
+# V1 (champion - original fp16)
+python3 -m vllm.entrypoints.openai.api_server \
+  --model Qwen/Qwen2.5-1.5B \
+  --port 8001 --max-model-len 512 \
+  --gpu-memory-utilization 0.45 --enforce-eager
+
+# V2 (challenger - quantized GPTQ)
+python3 -m vllm.entrypoints.openai.api_server \
+  --model ./qwen2.5-1.5b-gptq-4bit \
+  --port 8002 --max-model-len 512 \
+  --gpu-memory-utilization 0.45 --enforce-eager
+\end{verbatim}
+
+
+
+We verified both servers using \texttt{send\_predictions.py} to send test queries directly to each server:
+
+\begin{verbatim}
+python3 monitoring/send_predictions.py \
+  --url http://localhost:8001/v1/completions --version v1
+
+python3 monitoring/send_predictions.py \
+  --url http://localhost:8002/v1/completions --version v2
+\end{verbatim}
+
+Both servers responded correctly to sentiment queries. The vLLM server logs were saved as \texttt{vllm\_v1.log} and \texttt{vllm\_v2.log} for reference.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.9\textwidth]{images/vllm_test_predictions_part1.png}
+\caption{Test predictions - Part 1: V1 (Champion) test queries and responses}
+\label{fig:vllm_test_part1}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.9\textwidth]{images/vllm_test_predictions_part2.png}
+\caption{Test predictions - Part 2: V2 (Challenger) test queries and responses}
+\label{fig:vllm_test_part2}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.9\textwidth]{images/vllm_test_predictions_part3.png}
+\caption{Test predictions - Part 3: V2 (Challenger) negative sentiment test and summary}
+\label{fig:vllm_test_part3}
+\end{figure}
+
+\textbf{Test Results Summary:}
+\begin{itemize}
+\item \textbf{V1 (Champion - Original fp16):} Responded to both positive and negative sentiment queries
+\item \textbf{V2 (Challenger - Quantized GPTQ):} Successfully classified negative sentiment with response "This text has a negative..."
+\item \textbf{Both servers:} Returned proper JSON responses with token usage statistics (prompt\_tokens, completion\_tokens, total\_tokens)
+\item \textbf{Response time:} Both servers responded in under 1 second, demonstrating the quantized model maintains comparable performance
+\end{itemize}
+
+
+
+\subsection{Task 2: A/B Testing with Traffic Router (12 points)}
+
+We completed the FastAPI traffic router in \texttt{serving/traffic\_router.py} with:
+\begin{itemize}
+\item \texttt{/predict} endpoint: routes requests to V1 or V2 based on weighted random selection (80/20)
+\item \texttt{/stats} endpoint: returns traffic split statistics and average latency per version
+\end{itemize}
+
+\begin{verbatim}
+uvicorn traffic_router:app --host 0.0.0.0 --port 8000
+\end{verbatim}
+
+We sent 250 predictions through the router:
+
+\begin{table}[H]
+\centering
+\caption{A/B Test Results}
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Metric} & \textbf{Value} \\
+\midrule
+Total predictions & 250 \\
+V1 (champion) & 197 (78.8\%) \\
+V2 (challenger) & 53 (21.2\%) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+
+
+
+
+
+\subsection{Task 3: Drift Monitoring (10 points)}
+
+We split the prediction logs by model version and ran Evidently drift detection:
+
+\begin{verbatim}
+grep '"model_version": "v1"' predictions.jsonl > v1_predictions.jsonl
+grep '"model_version": "v2"' predictions.jsonl > v2_predictions.jsonl
+
+python3 monitoring/drift_detector.py \
+  --reference v1_predictions.jsonl \
+  --current v2_predictions.jsonl \
+  --output drift_report.html --push
+\end{verbatim}
+
+\textbf{Observations:}
+\begin{itemize}
+\item Latency: V2 (GPTQ) is faster than V1 (fp16) due to smaller model size
+\item Label distribution: Minimal drift, both models classify sentiments similarly
+\item The drift is primarily in latency, not in prediction quality
+\end{itemize}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.9\textwidth]{images/drift_report.jpeg}
+\caption{Evidently drift report showing dataset drift analysis (1/5 columns drifted, 20\% share, threshold 0.5)}
+\label{fig:drift_report}
+\end{figure}
+
+\textbf{Detailed Drift Analysis:}
+\begin{itemize}
+\item \textbf{Drift Score: 0.2} (below 0.5 threshold) - \textbf{No dataset drift detected}
+\item \textbf{Columns analyzed:} prediction\_numeric, text\_length, predicted\_label, latency\_ms, model\_version
+\item \textbf{Drifted column:} \texttt{model\_version} (Z-test p-value = 0) - This is expected since V1 and V2 are different models, not a data quality issue
+\item \textbf{Latency comparison:} p-value = 0.135 (not statistically significant) - V2 is faster but the difference is not significant at this sample size
+\item \textbf{Label distribution:} p-value = 1.0 - No drift in prediction quality between V1 and V2
+\item \textbf{Conclusion:} The quantized model (V2) maintains prediction quality comparable to the original (V1), with the main difference being latency. Safe to promote to production based on drift analysis.
+\end{itemize}
+
+
+
+
+
+
+
+\subsection{Task 4: k3d Deployment with Argo Rollouts (16 points)}
+
+\textbf{Step 1: Push images to registry}
+\begin{verbatim}
+docker tag vllm/vllm-openai:v0.18.0 localhost:5001/vllm-base:latest
+docker push localhost:5001/vllm-base:latest
+
+# Build analysis job image
+docker build -f monitoring/Dockerfile.analysis \
+  -t localhost:5001/sentiment-analysis-job:latest .
+docker push localhost:5001/sentiment-analysis-job:latest
+
+# Verify registry contents
+curl -s http://localhost:5001/v2/_catalog
+\end{verbatim}
+
+\textbf{Step 2: Create k3d cluster}
+\begin{verbatim}
+bash manage-cluster.sh create --gpu \
+  --volume "$HOME/.cache/huggingface:/mnt/hf-cache" \
+  --volume "quantization/qwen2.5-1.5b-gptq-4bit:/mnt/models/v2-quantized" \
+  cluster2
+\end{verbatim}
+
+\textbf{Step 3: Import custom image into k3d}
+\begin{verbatim}
+k3d image import \
+  "localhost:5001/sentiment-analysis-job:latest" \
+  -c cisc814-cluster2
+\end{verbatim}
+
+\textbf{Step 4: Apply manifests}
+We completed \texttt{k8s/rollout.yaml} and \texttt{k8s/analysis-template.yaml} then applied all manifests:
+\begin{verbatim}
+kubectl apply -f k8s/
+\end{verbatim}
+
+\textbf{Step 5: Trigger canary rollout (V1 to V2)}
+\begin{verbatim}
+kubectl patch rollout sentiment-model --type='json' -p='[
+  {"op": "replace", "path": "/spec/template/spec/containers/0/args/1", 
+   "value": "/mnt/models/v2-quantized"},
+  {"op": "replace", "path": "/spec/template/spec/containers/0/env/0/value", 
+   "value": "v2-quantized"}
+]'
+\end{verbatim}
+
+The rollout configuration uses a canary strategy with automated drift analysis gate checking that \texttt{sentiment\_drift\_score < 0.5}. In our demo the stable V1 pod remained healthy, and the canary V2 pod was created when GPU memory was available. The analysis job pushed the drift score to the Prometheus Pushgateway, and the Prometheus metric check queried the in-cluster Prometheus service to decide pass/fail. Grafana was accessed at \texttt{http://localhost:8501} to visualize the drift score and rollout metrics; Prometheus was accessed at \texttt{http://localhost:8601}.
+
+\textbf{Note on monitoring URLs:} The course README lists Prometheus at \texttt{localhost:8085}, but that port is actually used by the Evidently service in our setup. Prometheus and Grafana are installed inside the k3d cluster by \texttt{manage-cluster.sh} as part of \texttt{kube-prometheus-stack}; their host-facing URLs are \texttt{localhost:8601} (Prometheus) and \texttt{localhost:8501} (Grafana). We patched the Grafana datasource ConfigMap to point to the in-cluster Prometheus service so that the drift dashboard could query metrics successfully.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.9\textwidth]{images/sentiment_model_rollout.jpeg}
+\caption{Argo Rollouts dashboard showing sentiment model rollout}
+\label{fig:sentiment_model_rollout}
+\end{figure}
+
+
+
+
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.9\textwidth]{images/grafana_dashboard.jpeg}
+\caption{Grafana dashboard showing rollout metrics and pod status}
+\label{fig:grafana_dashboard}
+\end{figure}
+
+
+
+
+
+\newpage
+
+% ============================================
+\section{Video Presentation}
+\label{sec:video}
+% ============================================
+
+A 10-minute step-by-step live demo video was created covering:
+\begin{itemize}
+\item Part A: MLflow experiments with few-shot prompting and quantization
+\item Part B: Deploying a new canary model in k3d with Argo Rollouts and drift monitoring
+\end{itemize}
+
+\textbf{Video URL:} \url{https://drive.google.com/drive/folders/1unnBNEiOz5OSak0DwEVh2eQr5cnvm79X?usp=sharing}
+
+\newpage
+
+% ============================================
+\section{Architecture Diagrams}
+\label{sec:architecture}
+% ============================================
+
+\subsection{Part A Architecture}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.85\textwidth]{images/architecture_digram_a.png}
+\caption{Part A Architecture: Training and Experimentation Pipeline}
+\label{fig:arch-a}
+\end{figure}
+
+\textbf{Components (Part A):}
+
+\begin{itemize}
+\item \textbf{Data Loader (\texttt{training/src/data\_loader.py})}: Generates sample training and evaluation datasets. Used in Part A Task 0 for creating the datasets needed for few-shot and quantization experiments.
+
+\item \textbf{MLflow Setup (\texttt{training/src/train.py})}: Contains \texttt{setup\_mlflow()} function that connects to the MLflow server at \texttt{http://localhost:5050} and creates an experiment with \texttt{artifact\_location="mlflow-artifacts:/"}. Used in Part A Task 1.
+
+\item \textbf{Few-Shot Experiments (\texttt{training/src/experiments/few\_shot.py})}: Implements few-shot prompting with 1, 3, and 5 examples. Logs parameters (\texttt{experiment\_type}, \texttt{n\_shots}, \texttt{vllm\_model\_path}), metrics (accuracy, F1, latency), and artifacts (classification\_report, confusion\_matrix) to MLflow. Used in Part A Task 2.
+
+\item \textbf{Quantization (\texttt{quantization/quantize\_model.py})}: Contains \texttt{quantize\_gptq} which compresses the 16-bit model to 4-bit GPTQ, and \texttt{evaluate\_quantized\_model} which evaluates the compressed model and logs accuracy, F1, latency, and model size to MLflow. Used in Part A Task 3.
+
+\item \textbf{Model Registry (\texttt{training/src/registration.py})}: Implements \texttt{register\_model} function that finds the best run by F1 score and assigns aliases (champion for few-shot, challenger for quantization). Used in Part A Task 4.
+
+\item \textbf{Evaluation Utilities (\texttt{training/src/evaluate.py})}: Computes accuracy, F1, precision, recall, and generates confusion matrix. Used across Part A Tasks 2-3.
+\end{itemize}
+
+\subsection{Part B Architecture}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.85\textwidth]{images/architecture_digram_b.png}
+\caption{Part B Architecture: Production Serving Pipeline}
+\label{fig:arch-b}
+\end{figure}
+
+\textbf{Components (Part B):}
+
+\begin{itemize}
+\item \textbf{MLflow Model Registry}: Stores champion (V1 - few-shot) and challenger (V2 - quantized) model versions with \texttt{vllm\_model\_path} tags. Queried via inline Python script to get model paths for serving. Used in Part B Task 1.
+
+\item \textbf{vLLM Serving}: Runs two vLLM servers on ports 8001 (V1, original fp16) and 8002 (V2, GPTQ quantized). Provides OpenAI-compatible API endpoints for sentiment classification. Used in Part B Task 1.
+
+\item \textbf{Test Client (\texttt{monitoring/send\_predictions.py})}: Sends test predictions to vLLM endpoints to verify correct responses. Used in Part B Task 1 to validate both V1 and V2 servers.
+
+\item \textbf{FastAPI Traffic Router (\texttt{serving/traffic\_router.py})}: Routes 80\% of traffic to V1 and 20\% to V2. Implements \texttt{/predict} (weighted random selection) and \texttt{/stats} (traffic split statistics) endpoints. Logs all predictions to \texttt{predictions.jsonl}. Used in Part B Task 2.
+
+\item \textbf{Drift Detector (\texttt{monitoring/drift\_detector.py})}: Uses Evidently to compare V1 (reference) vs V2 (current) predictions. Generates HTML report and pushes to Evidently UI. Checks for latency drift and label distribution shift. Used in Part B Task 3.
+
+\item \textbf{k3d Registry}: Stores \texttt{vllm-base} and \texttt{sentiment-analysis-job} Docker images. Verified with \texttt{curl -s http://localhost:5001/v2/\_catalog}. Used in Part B Task 4.
+
+\item \textbf{k3d Cluster}: GPU-enabled cluster with volume mounts for HuggingFace cache and quantized model. Used in Part B Task 4.
+
+\item \textbf{Argo Rollouts (\texttt{k8s/rollout.yaml})}: Defines canary deployment strategy with 20\% weight steps, automated drift analysis gate, and pause intervals. Used in Part B Task 4.
+
+\item \textbf{Analysis Template (\texttt{k8s/analysis-template.yaml})}: Defines automated gate that runs the sentiment-analysis-job container, computes drift score, and queries Prometheus to decide pass/fail based on \texttt{sentiment\_drift\_score < 0.5}. Used in Part B Task 4.
+
+\item \textbf{Grafana Dashboard}: Monitors rollout metrics, pod status, and traffic split during canary deployment. Used in Part B Task 4.
+\end{itemize}
+
+\newpage
+
+% ============================================
+\section{Challenges and Lessons Learned}
+\label{sec:challenges}
+% ============================================
+
+Throughout the implementation of this MLOps pipeline, we encountered several challenges that provided valuable learning experiences:
+
+\textbf{1. Quantization Time and Resource Management}
+\begin{itemize}
+\item The GPTQ quantization process took approximately 45 minutes to complete, requiring careful GPU monitoring with \texttt{nvidia-smi} to ensure the process was still active
+\item We had to kill any leftover vLLM processes before starting quantization to free up VRAM: \texttt{pkill -f "vllm.entrypoints"}
+\item \textbf{Lesson learned:} Plan for long-running ML operations and implement proper resource monitoring
+\end{itemize}
+
+\textbf{2. MLflow Experiment Management}
+\begin{itemize}
+\item Initially, we created two experiments with similar names (Experiment ID 1 and 2) due to the experiment creation logic trying to create before checking existence
+\item The \texttt{setup\_mlflow()} function uses a try-except pattern: tries \texttt{create\_experiment()} first, then falls back to \texttt{get\_experiment\_by\_name()} if it already exists
+\item \textbf{Lesson learned:} Use unique, descriptive experiment names and implement proper experiment validation
+\end{itemize}
+
+\textbf{3. vLLM Server Management}
+\begin{itemize}
+\item Running two vLLM servers simultaneously (V1 on port 8001, V2 on port 8002) required careful GPU memory allocation (0.45 utilization per server)
+\item We used \texttt{--enforce-eager} mode to reduce memory overhead and speed up startup
+\item \textbf{Lesson learned:} Production MLOps requires careful resource planning and isolation between model versions
+\end{itemize}
+
+\textbf{4. k3d Cluster Setup, Monitoring, and Argo Rollouts}
+\begin{itemize}
+\item Creating a new k3d cluster (\texttt{cluster2}) while keeping the Assignment 1 cluster (\texttt{queens}) required careful volume mounting and port management
+\item The course README points Prometheus to \texttt{localhost:8085}, but that port is used by Evidently in our stack. Prometheus and Grafana are installed inside the k3d cluster by \texttt{manage-cluster.sh} as part of \texttt{kube-prometheus-stack}; their URLs are \texttt{localhost:8601} (Prometheus) and \texttt{localhost:8501} (Grafana)
+\item We patched the Grafana datasource ConfigMap so Grafana queries the in-cluster Prometheus service instead of the incorrect \texttt{localhost:8600} default, enabling the drift dashboard to display data
+\item The Argo Rollouts canary strategy with automated drift analysis gate required precise configuration of the analysis template to query Prometheus correctly
+\item \textbf{Lesson learned:} Canary deployments with automated gates provide safety nets for production model updates, but monitoring stack URLs must be verified against the actual deployment
+\end{itemize}
+
+\textbf{5. Drift Detection Interpretation}
+\begin{itemize}
+\item The drift report showed "No dataset drift detected" (drift score 0.2, below 0.5 threshold), but the \texttt{model\_version} column showed drift (expected since V1 and V2 are different models)
+\item We learned to distinguish between meaningful drift (data quality issues) and expected drift (model version differences)
+\item \textbf{Lesson learned:} Drift detection requires domain knowledge to interpret results correctly
+\end{itemize}
+
+\textbf{6. A/B Testing with Traffic Splitting}
+\begin{itemize}
+\item The 80/20 traffic split resulted in 197 V1 predictions and 53 V2 predictions (total 250), which is slightly off from perfect 80/20 due to random variation
+\item Logging all predictions to JSONL enabled detailed analysis and drift detection
+\item \textbf{Lesson learned:} A/B testing requires sufficient sample sizes for statistical significance
+\end{itemize}
+
+\newpage
+
+% ============================================
+\section{Team Contributions}
+\label{sec:contributions}
+% ============================================
+
+This project was a highly collaborative effort. All four team members worked together throughout both Part A and Part B. While each member had primary focus areas, we regularly pair-programmed, reviewed each other's code via Pull Requests, and jointly debugged issues. No component was built in isolation—every decision was discussed and agreed upon as a team. The sections below describe each member's primary focus areas and major contributions. Commit counts (from Gitea) are provided for transparency, but they do not fully represent the collaborative nature of this work: team members frequently contributed to files committed under each other's names through pair programming and joint debugging sessions.
+
+\subsection{Marwan Aly}
+
+\textbf{Primary Focus:} MLflow Setup, Model Serving, Infrastructure Integration, Final Report Compilation
+
+\textbf{Major Contributions:}
+\begin{itemize}
+\item Part A Task 0 + 1: Dependencies installation and MLflow setup with artifact proxying
+\item Part B Task 1: Model serving with vLLM (V1 and V2 servers), verified predictions, saved server logs
+\item Created Part A architecture diagram for the report
+\item Set up the experiment repository and coordinated team workflow
+\item Compiled the final report with all screenshots and experimental results
+\item Created the 10-minute demo video covering Part A and Part B
+\item \textbf{Final k3d deployment fixes:} Updated \texttt{k8s/rollout.yaml} with quantized model volume mounts to enable proper V2 deployment in the k3d cluster
+\item \textbf{Quantization artifacts:} Generated and pushed quantization confusion matrix (\texttt{quantization\_confusion\_matrix.png}) and predictions CSV (\texttt{quantization\_predictions.csv}) for drift analysis reference
+\item \textbf{vLLM testing:} Created automated test script (\texttt{test\_vllm\_predictions.sh}) for verifying both V1 and V2 server responses to sentiment queries
+\item \textbf{Captured vLLM server logs:} Saved complete \texttt{vllm\_v1.log} and \texttt{vllm\_v2.log} files showing server startup, model loading, and request handling for troubleshooting and verification
+\item \textbf{Monitoring stack fix:} Patched the Grafana Prometheus datasource ConfigMap and documented the correct Grafana/Prometheus URLs (\texttt{localhost:8501} and \texttt{localhost:8601})
+\end{itemize}
+
+\subsection{Manar Elabsi}
+
+\textbf{Primary Focus:} Few-Shot Experiments, A/B Testing, Traffic Router
+
+\textbf{Major Contributions:}
+\begin{itemize}
+\item Part A Task 2: Few-shot experiment runs (1/3/5-shot) with MLflow logging
+\item Part B Task 2: A/B testing traffic router with 80/20 split, generated 250 predictions, created JSONL logs
+\item Created Part B architecture diagram for the report
+\item Implemented the \texttt{predict} and \texttt{stats} endpoints in the traffic router
+\end{itemize}
+
+\subsection{Mohamed Othman}
+
+\textbf{Primary Focus:} Quantization, Drift Monitoring, k3d Infrastructure
+
+\textbf{Major Contributions:}
+\begin{itemize}
+\item Part A Task 3: Quantization (GPTQ 4-bit) with evaluation and MLflow logging
+\item Part B Task 3: Drift monitoring using Evidently, generated drift report
+\item Part B Task 4a: k3d infrastructure setup (registry images, cluster creation)
+\item Explained \texttt{quantize\_gptq} and \texttt{evaluate\_quantized\_model} functions in the report
+\end{itemize}
+
+\subsection{Aya Abdelmonem}
+
+\textbf{Primary Focus:} Model Registry, Argo Rollouts Manifests, Report Compilation
+
+\textbf{Major Contributions:}
+\begin{itemize}
+\item Part A Task 4: Model registry with champion and challenger aliases
+\item Part B Task 4b: Argo Rollouts manifests (rollout.yaml, analysis-template.yaml)
+\end{itemize}
+
+\section{AI Usage Disclosure}
+
+We used AI tools (ChatGPT/Claude) for:
+\begin{itemize}
+\item Understanding MLflow API and vLLM configuration
+\item Debugging Kubernetes manifest syntax
+\item Drafting the report structure
+\end{itemize}
+
+All code implementations were reviewed, tested, and understood by team members before submission.
+
+\end{document}
